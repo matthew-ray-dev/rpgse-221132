@@ -1,32 +1,34 @@
 import argparse
 from collections import Counter
-##### from math import comb
-from random import randint
+from decimal import Decimal
+from itertools import product
+from math import comb
 import sys
 from textwrap import indent
 from typing import Any
 
 DIE_SIZE: int = 6
 INDENT = '    '
+ROLL_BLOCK_SIZE = 1_000_000
 
 class RollSimulator(object):
-    """Rolls dice, applies bumps/drops, and tracks the results."""
+    """Rolls dice, applies bumps/drops, and counts the results."""
 
-    
     def __init__(self, dice_per_roll: int, threshold: int, roll_mod: int):
-        self._final_roll_counts: Counter[tuple[int, ...]] = Counter()
+        self._raw_roll_counts: Counter[tuple[int, ...]] = Counter()
+        self._modded_roll_counts: Counter[tuple[int, ...]] = Counter()
         self._dice_per_roll = dice_per_roll
         self._threshold = threshold
         self._roll_mod = roll_mod
 
         
-    def _stringify_counter_as_percents(self, counter: Counter[Any]) -> str:
-        result_str = ''
+    def _stringify_counter_as_percents(self, counter: Counter[Any]) -> list[str]:
+        lines: list[str] = []
         k: Any
         for k in sorted(counter):
-            fraction: float = counter[k] / counter.total()
-            result_str += f'{k}: {fraction * 100}\n'
-        return result_str
+            fraction: Decimal = Decimal(counter[k]) / Decimal(counter.total())
+            lines.append(f'{k}: {fraction * 100:.3}%')
+        return lines
 
     
     def _count_results_by_successes_and_maxes(self) -> Counter[tuple[int, int]]:
@@ -37,7 +39,7 @@ class RollSimulator(object):
         successes_and_maxes_counts: Counter[tuple[int, int]] = Counter()
         k: tuple[int, ...]
         v: int
-        for k, v in self._final_roll_counts.items():
+        for k, v in self._modded_roll_counts.items():
             num_successes: int = 0
             num_maxes: int = 0
             die: int
@@ -50,43 +52,73 @@ class RollSimulator(object):
         return successes_and_maxes_counts
 
         
-    def get_result(self) -> str:
-        result_str = f'Simulated {self._final_roll_counts.total()} rolls.\n'
+    def get_printable_result(self, include_roll_details: bool=False) -> list[str]:
+        lines: list[str] = []
         
         # Results by successes + maxes
-        result_str += f'Percent by (# successes, # {DIE_SIZE}s):\n'
-        result_str += indent(self._stringify_counter_as_percents(
-            self._count_results_by_successes_and_maxes()), INDENT)
+        lines.append(f'Final roll odds grouped by (# successes, # {DIE_SIZE}s):')
+        summary_lines = (indent(s, INDENT)
+                         for s
+                         in self._stringify_counter_as_percents(
+                             self._count_results_by_successes_and_maxes()))
+        lines.extend(summary_lines)
         
         # Results by roll
-        result_str += 'Percent by final (modified) roll:\n'
-        result_str += indent(self._stringify_counter_as_percents(
-            self._final_roll_counts), INDENT)
-        
-        return result_str
-
-
-    def _roll_dice(self) -> list[int]:
-        rolls = [randint(1, DIE_SIZE) for _ in range(self._dice_per_roll)]
-        rolls.sort()
-        return rolls
-    
-    def _bump_and_drop_rolls(self, rolls: list[int]) -> tuple[int, ...]:
-        # TODO: actually add the bumps and drops
-        return tuple(rolls)
-    
-    def do_rolls(self, num_rolls: int):
-        for _ in range(num_rolls):
-            modded_roll: tuple[int, ...] = self._bump_and_drop_rolls(
-                self._roll_dice())
-            self._final_roll_counts[modded_roll] += 1
+        if (include_roll_details):
+            # Expectation is calculated with the "multichoose" formula.
+            num_possible_raw_rolls: int = comb(
+                    DIE_SIZE + self._dice_per_roll - 1, self._dice_per_roll)
+            lines.append(f'Expected {num_possible_raw_rolls} possible roll '
+                    + 'outcomes (before bumps & drops).')
+            lines.append('Actual number of raw rolls logged: '
+                    + f'{len(self._raw_roll_counts)}')
             
+            lines.append('Roll odds for raw / unmodified rolls:')
+            raw_detail_lines = (indent(s, INDENT)
+                                for s
+                                in self._stringify_counter_as_percents(
+                                        self._raw_roll_counts))
+            lines.extend(raw_detail_lines)
+            
+            lines.append('Roll odds for final / modified / bumped-and-dropped rolls:')
+            modded_detail_lines = (indent(s, INDENT)
+                            for s
+                            in self._stringify_counter_as_percents(
+                                self._modded_roll_counts))
+            lines.extend(modded_detail_lines)
+        
+        return lines
+
+    
+    def _bump_and_drop_rolls(self, raw_rolls: tuple[int, ...]) -> tuple[int, ...]:
+        # TODO: actually add the bumps and drops
+        modded_rolls: list[int] = list(raw_rolls)
+        return tuple(modded_rolls)
+
+    
+    def compute_roll_odds(self):
+        # Count, proportionally, the odds of each raw roll combination.
+        # For example, with three dice, 
+        # we represent the odds of rolling-three-1s as ==1,
+        # and the odds of rolling-two-1s-and-a-2 as ==3,
+        # because there are three distinct ways to roll the latter.
+        # ((1,1,2), (1,2,1), (2,1,1))
+        for roll in product(range(1, DIE_SIZE + 1), repeat=self._dice_per_roll):
+            self._raw_roll_counts[tuple(sorted(roll))] += 1
+    
+        # Then apply bumps and drops.
+        # This might lead to collisions, so we total the odds accordingly.
+        k: tuple[int, ...]
+        v: int
+        for k, v in self._raw_roll_counts.items():
+            modded_roll: tuple[int, ...] = self._bump_and_drop_rolls(k)
+            self._modded_roll_counts[modded_roll] += v
 
 
 def main():
     parser = argparse.ArgumentParser(
-                    prog='rpgse_221132_monte_carlo',
-                    description='Simulates a large number of dice rolls under the bump/drop system described in https://rpg.stackexchange.com/q/221132/ to find a roughly-average result.')
+                    prog='rpgse_221132',
+                    description='Computes odds of rolls under the bump/drop system described in https://rpg.stackexchange.com/q/221132/.')
     parser.add_argument('-n', '--num-dice', type=int, required=True,
                         help='The number of d6 dice to roll')
     parser.add_argument('-t', '--threshold', type=int, required=True,
@@ -95,8 +127,8 @@ def main():
                         help='The number of "bumps" (plus-ones) to apply to dice after the roll')
     parser.add_argument('-d', '--drops', type=int, default=0,
                             help='The number of "drops" (minus-ones) to apply to dice after the roll')
-    parser.add_argument('-r', '--num-rolls', type=int, default=100_000,
-                            help='The number of rolls to simulate')
+    parser.add_argument('--print-roll-details', action='store_true',
+                            help='Print chance of each distinct roll. (This may be very long.)')
     args = parser.parse_args()
     
     # Input validation
@@ -125,14 +157,11 @@ def main():
     # Do the work
     roll_simulator: RollSimulator = RollSimulator(args.num_dice, args.threshold,
                                                   (args.bumps - args.drops))
-    # TODO: calculate reasonable number of rolls to simulate?
-    # Number of possible raw roll outcomes: {DIE_SIZE} multichoose {num_dice}
-    # i.e.: ({DIE_SIZE} + {num_dice} - 1) choose {num_dice}
-    ##### print(comb(DIE_SIZE + args.num_dice - 1, args.num_dice))
-    roll_simulator.do_rolls(args.num_rolls)
-    # TODO: BUG! Doesn't print all rolls when num_rolls is too high
-    print(roll_simulator.get_result())
-    exit(0)
+    roll_simulator.compute_roll_odds()
+    for line in roll_simulator.get_printable_result(
+            include_roll_details=args.print_roll_details):
+        print(line)
+
 
 if __name__ == "__main__":
     main()
