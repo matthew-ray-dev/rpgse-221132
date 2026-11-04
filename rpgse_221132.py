@@ -123,12 +123,13 @@ class RollSimulator(object):
         """
         print(f'Applying {num_bumps} bumps to {dice_counts}...')
         bumps_remaining: int = num_bumps
-        bump_distance: int
-        # Do all "useful" single-bumps, then double-bumps, then triple, etc.
-        for bump_distance in range(1, DIE_SIZE - 1):
-            # At each distance, go for successes first and max-rolls second
-            target: int
-            for target in (self._threshold, DIE_SIZE):
+        # Maximize successes first, go for max-rolls second
+        target: int
+        for target in (self._threshold, DIE_SIZE):
+            # For each target,
+            # do all "useful" single-bumps, then double-bumps, then triple, etc.
+            bump_distance: int
+            for bump_distance in range(1, DIE_SIZE - 1):
                 source: int = target - bump_distance
                 if source < 1:
                     continue
@@ -146,13 +147,13 @@ class RollSimulator(object):
         """
         print(f'Applying {num_drops} drops to {dice_counts}...')
         drops_remaining: int = num_drops
-        drop_distance: int
-        # Do all "useful" single-drops, then double-drops, then triple, etc.
-        for drop_distance in range(1, DIE_SIZE - 1):
-            # At each distance, undo successes first and max-rolls second
-            # (Of course there will be no max-rolls left after the first pass)
-            target: int
-            for target in (self._threshold - 1, DIE_SIZE - 1):
+        # Minimize successes first, then try to undo undo max-rolls second.
+        target: int
+        for target in (self._threshold - 1, DIE_SIZE - 1):
+            # For each target,
+            # do all "useful" single-drops, then double-drops, then triple, etc.
+            drop_distance: int
+            for drop_distance in range(1, DIE_SIZE - 1):
                 source: int = target + drop_distance
                 if source > DIE_SIZE:
                     continue
