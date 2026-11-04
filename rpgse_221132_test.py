@@ -80,6 +80,66 @@ class TestRpgSE221132(unittest.TestCase):
         expected_result = Counter({1:0, 2:0, 3:0, 4:1, 5:0, 6:2})
         self.assertDictEqual(expected_result, roll_counts)
 
+    def test_drops_01(self):
+        # input rolls: [4, 5, 6]
+        roll_counts: Counter[int] = Counter({1:0, 2:0, 3:0, 4:1, 5:1, 6:1})
+        threshold: int = 4
+        num_drops: int = 1
+        self._do_drops(roll_counts, threshold, num_drops)
+        # expected result: [3, 5, 6]
+        expected_result = Counter({1:0, 2:0, 3:1, 4:0, 5:1, 6:1})
+        self.assertDictEqual(expected_result, roll_counts)
+
+    def test_drops_02(self):
+        # input rolls: [4, 5, 6]
+        roll_counts: Counter[int] = Counter({1:0, 2:0, 3:0, 4:1, 5:1, 6:1})
+        threshold: int = 4
+        num_drops: int = 2
+        self._do_drops(roll_counts, threshold, num_drops)
+        # expected result: [3, 5, 5]
+        expected_result = Counter({1:0, 2:0, 3:1, 4:0, 5:2, 6:0})
+        self.assertDictEqual(expected_result, roll_counts)
+
+    def test_drops_03(self):
+        # input rolls: [4, 5, 6]
+        roll_counts: Counter[int] = Counter({1:0, 2:0, 3:0, 4:1, 5:1, 6:1})
+        threshold: int = 4
+        num_drops: int = 3
+        self._do_drops(roll_counts, threshold, num_drops)
+        # expected result: [3, 3, 6]
+        expected_result = Counter({1:0, 2:0, 3:2, 4:0, 5:0, 6:1})
+        self.assertDictEqual(expected_result, roll_counts)
+
+    def test_drops_04(self):
+        # input rolls: [4, 5, 6]
+        roll_counts: Counter[int] = Counter({1:0, 2:0, 3:0, 4:1, 5:1, 6:1})
+        threshold: int = 4
+        num_drops: int = 4
+        self._do_drops(roll_counts, threshold, num_drops)
+        # expected result: [3, 3, 5]
+        expected_result = Counter({1:0, 2:0, 3:2, 4:0, 5:1, 6:0})
+        self.assertDictEqual(expected_result, roll_counts)
+
+    def test_drops_05(self):
+        # input rolls: [4, 5, 6]
+        roll_counts: Counter[int] = Counter({1:0, 2:0, 3:0, 4:1, 5:1, 6:1})
+        threshold: int = 4
+        num_drops: int = 5
+        self._do_drops(roll_counts, threshold, num_drops)
+        # expected result: [3, 3, 5] (with 1 unused drop)
+        expected_result = Counter({1:0, 2:0, 3:2, 4:0, 5:1, 6:0})
+        self.assertDictEqual(expected_result, roll_counts)
+
+    def test_drops_06(self):
+        # input rolls: [4, 5, 6]
+        roll_counts: Counter[int] = Counter({1:0, 2:0, 3:0, 4:1, 5:1, 6:1})
+        threshold: int = 4
+        num_drops: int = 6
+        self._do_drops(roll_counts, threshold, num_drops)
+        # expected result: [3, 3, 3]
+        expected_result = Counter({1:0, 2:0, 3:3, 4:0, 5:0, 6:0})
+        self.assertDictEqual(expected_result, roll_counts)
+
 
 if __name__ == '__main__':
     unittest.main()
