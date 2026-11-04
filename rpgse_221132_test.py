@@ -27,12 +27,8 @@ class TestRpgSE221132(unittest.TestCase):
         num_bumps: int = 1
         self._do_bumps(roll_counts, threshold, num_bumps)
         # expected result: [2, 4, 5]
-        self.assertEqual(roll_counts[1], 0)
-        self.assertEqual(roll_counts[2], 1)
-        self.assertEqual(roll_counts[3], 0)
-        self.assertEqual(roll_counts[4], 1)
-        self.assertEqual(roll_counts[5], 1)
-        self.assertEqual(roll_counts[6], 0)
+        expected_result = Counter({1:0, 2:1, 3:0, 4:1, 5:1, 6:0})
+        self.assertDictEqual(expected_result, roll_counts)
 
     def test_bumps_02(self):
         # input rolls: [2, 3, 5]
@@ -41,12 +37,8 @@ class TestRpgSE221132(unittest.TestCase):
         num_bumps: int = 2
         self._do_bumps(roll_counts, threshold, num_bumps)
         # expected result: [2, 4, 6]
-        self.assertEqual(roll_counts[1], 0)
-        self.assertEqual(roll_counts[2], 1)
-        self.assertEqual(roll_counts[3], 0)
-        self.assertEqual(roll_counts[4], 1)
-        self.assertEqual(roll_counts[5], 0)
-        self.assertEqual(roll_counts[6], 1)
+        expected_result = Counter({1:0, 2:1, 3:0, 4:1, 5:0, 6:1})
+        self.assertDictEqual(expected_result, roll_counts)
 
     def test_bumps_03(self):
         # input rolls: [2, 3, 5]
@@ -55,12 +47,8 @@ class TestRpgSE221132(unittest.TestCase):
         num_bumps: int = 3
         self._do_bumps(roll_counts, threshold, num_bumps)
         # expected result: [4, 4, 5]
-        self.assertEqual(roll_counts[1], 0)
-        self.assertEqual(roll_counts[2], 0)
-        self.assertEqual(roll_counts[3], 0)
-        self.assertEqual(roll_counts[4], 2)
-        self.assertEqual(roll_counts[5], 1)
-        self.assertEqual(roll_counts[6], 0)
+        expected_result = Counter({1:0, 2:0, 3:0, 4:2, 5:1, 6:0})
+        self.assertDictEqual(expected_result, roll_counts)
 
     def test_bumps_04(self):
         # input rolls: [2, 3, 5]
@@ -69,12 +57,8 @@ class TestRpgSE221132(unittest.TestCase):
         num_bumps: int = 4
         self._do_bumps(roll_counts, threshold, num_bumps)
         # expected result: [4, 4, 6]
-        self.assertEqual(roll_counts[1], 0)
-        self.assertEqual(roll_counts[2], 0)
-        self.assertEqual(roll_counts[3], 0)
-        self.assertEqual(roll_counts[4], 2)
-        self.assertEqual(roll_counts[5], 0)
-        self.assertEqual(roll_counts[6], 1)
+        expected_result = Counter({1:0, 2:0, 3:0, 4:2, 5:0, 6:1})
+        self.assertDictEqual(expected_result, roll_counts)
 
     def test_bumps_05(self):
         # input rolls: [2, 3, 5]
@@ -83,12 +67,8 @@ class TestRpgSE221132(unittest.TestCase):
         num_bumps: int = 5
         self._do_bumps(roll_counts, threshold, num_bumps)
         # expected result: [4, 4, 6]
-        self.assertEqual(roll_counts[1], 0)
-        self.assertEqual(roll_counts[2], 0)
-        self.assertEqual(roll_counts[3], 0)
-        self.assertEqual(roll_counts[4], 2)
-        self.assertEqual(roll_counts[5], 0)
-        self.assertEqual(roll_counts[6], 1)
+        expected_result = Counter({1:0, 2:0, 3:0, 4:2, 5:0, 6:1})
+        self.assertDictEqual(expected_result, roll_counts)
 
     def test_bumps_06(self):
         # input rolls: [2, 3, 5]
@@ -97,12 +77,8 @@ class TestRpgSE221132(unittest.TestCase):
         num_bumps: int = 6
         self._do_bumps(roll_counts, threshold, num_bumps)
         # expected result: [4, 6, 6]
-        self.assertEqual(roll_counts[1], 0)
-        self.assertEqual(roll_counts[2], 0)
-        self.assertEqual(roll_counts[3], 0)
-        self.assertEqual(roll_counts[4], 1)
-        self.assertEqual(roll_counts[5], 0)
-        self.assertEqual(roll_counts[6], 2)
+        expected_result = Counter({1:0, 2:0, 3:0, 4:1, 5:0, 6:2})
+        self.assertDictEqual(expected_result, roll_counts)
 
 
 if __name__ == '__main__':
