@@ -5,7 +5,7 @@ from itertools import product
 from math import comb
 import sys
 from textwrap import indent
-from typing import Any
+from typing import Any, Sequence
 
 DIE_SIZE: int = 6
 INDENT = '    '
@@ -89,12 +89,92 @@ class RollSimulator(object):
         
         return lines
 
+    def _convert_rolls_to_dice_histo_counts(self, rolls: Sequence[int]) -> Counter[int]:
+        """
+        E.g. converts (1, 2, 5, 5, 6) or [1, 2, 5, 5, 6] to
+        Counter({1: 1, 2: 1, 3: 0, 4: 0, 5: 2, 6: 1})
+        """
+        dice_counts: Counter[int] = Counter()
+        i: int
+        for i in range(1, DIE_SIZE + 1):
+            dice_counts[i] = 0
+        single_roll_value: int
+        for single_roll_value in rolls:
+            dice_counts[single_roll_value] += 1
+        return dice_counts
+
+    def _convert_dice_histo_counts_to_rolls(self, dice_counts: Counter[int]) -> tuple[int, ...]:
+        """
+        E.g. converts Counter({1: 1, 2: 1, 3: 0, 4: 0, 5: 2, 6: 1})
+        to (1, 2, 5, 5, 6)
+        """
+        rolls: list[int] = list()
+        single_roll_value: int
+        for single_roll_value in range(1, DIE_SIZE + 1):
+            # Repeat the value for the number of times we counted it
+            rolls.extend((single_roll_value for _
+                          in range(dice_counts[single_roll_value])))
+        rolls.sort()
+        return tuple(rolls)
+
+    def _bump_dice_counts(self, dice_counts: Counter[int], num_bumps: int):
+        """
+        Mutates the input dice_counts Counter according to the number of bumps
+        """
+        print(f'Applying {num_bumps} bumps to {dice_counts}...')
+        bumps_remaining: int = num_bumps
+        bump_distance: int
+        # Do all "useful" single-bumps, then double-bumps, then triple, etc.
+        for bump_distance in range(1, DIE_SIZE - 1):
+            # At each distance, go for successes first and max-rolls second
+            target: int
+            for target in (self._threshold, DIE_SIZE):
+                source: int = target - bump_distance
+                if source < 1:
+                    continue
+                while dice_counts[source] > 0 and (
+                        bumps_remaining - bump_distance >= 0):
+                    print(f'Bumping a {source} to a {target}...')
+                    dice_counts[source] -= 1
+                    dice_counts[target] += 1
+                    bumps_remaining -= bump_distance
+        print(f'Outcome after bumps: {dice_counts}; {bumps_remaining} drops left over')
+
+    def _drop_dice_counts(self, dice_counts: Counter[int], num_drops: int):
+        """
+        Mutates the input dice_counts Counter according to the number of drops
+        """
+        print(f'Applying {num_drops} drops to {dice_counts}...')
+        drops_remaining: int = num_drops
+        drop_distance: int
+        # Do all "useful" single-drops, then double-drops, then triple, etc.
+        for drop_distance in range(1, DIE_SIZE - 1):
+            # At each distance, undo successes first and max-rolls second
+            # (Of course there will be no max-rolls left after the first pass)
+            target: int
+            for target in (self._threshold - 1, DIE_SIZE - 1):
+                source: int = target + drop_distance
+                if source > DIE_SIZE:
+                    continue
+                while dice_counts[source] > 0 and (
+                        drops_remaining - drop_distance >= 0):
+                    print(f'Dropping a {source} to a {target}...')
+                    dice_counts[source] -= 1
+                    dice_counts[target] += 1
+                    drops_remaining -= drop_distance
+        print(f'Outcome after drops: {dice_counts}; {drops_remaining} drops left over')
     
     def _bump_and_drop_rolls(self, raw_rolls: tuple[int, ...]) -> tuple[int, ...]:
-        # TODO: actually add the bumps and drops
-        modded_rolls: list[int] = list(raw_rolls)
-        return tuple(modded_rolls)
-
+        if (self._roll_mod == 0):
+            return raw_rolls
+        else:
+            dice_counts: Counter[int] = self._convert_rolls_to_dice_histo_counts(
+                    list(raw_rolls))
+            if (self._roll_mod > 0):
+                self._bump_dice_counts(dice_counts, self._roll_mod)
+            else: # < 0
+                self._drop_dice_counts(dice_counts, abs(self._roll_mod))
+            return self._convert_dice_histo_counts_to_rolls(dice_counts)
     
     def compute_roll_odds(self):
         # Count, proportionally, the odds of each raw roll combination.
