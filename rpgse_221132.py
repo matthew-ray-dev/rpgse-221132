@@ -94,10 +94,7 @@ class RollSimulator(object):
         E.g. converts (1, 2, 5, 5, 6) or [1, 2, 5, 5, 6] to
         Counter({1: 1, 2: 1, 3: 0, 4: 0, 5: 2, 6: 1})
         """
-        dice_counts: Counter[int] = Counter()
-        i: int
-        for i in range(1, DIE_SIZE + 1):
-            dice_counts[i] = 0
+        dice_counts: Counter[int] = Counter({k: 0 for k in range(1, DIE_SIZE + 1)})
         single_roll_value: int
         for single_roll_value in rolls:
             dice_counts[single_roll_value] += 1
@@ -108,12 +105,7 @@ class RollSimulator(object):
         E.g. converts Counter({1: 1, 2: 1, 3: 0, 4: 0, 5: 2, 6: 1})
         to (1, 2, 5, 5, 6)
         """
-        rolls: list[int] = list()
-        single_roll_value: int
-        for single_roll_value in range(1, DIE_SIZE + 1):
-            # Repeat the value for the number of times we counted it
-            rolls.extend((single_roll_value for _
-                          in range(dice_counts[single_roll_value])))
+        rolls: list[int] = list(dice_counts.elements())
         rolls.sort()
         return tuple(rolls)
 
