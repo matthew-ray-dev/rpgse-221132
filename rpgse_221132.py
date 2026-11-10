@@ -219,7 +219,7 @@ def main():
     if (args.threshold <= 0):
         warning_msg = f'WARNING! Threshold value ({args.threshold}) is <= 0. Results may not be useful.'
     elif (args.threshold > DIE_SIZE):
-        warning_msg = f'WARNING! Threshold value ({args.threshold}) is above max die value. Results may not be useful.'
+        warning_msg = f'WARNING! Threshold value ({args.threshold}) is above max die value ({DIE_SIZE}). Results may not be useful.'
     if (warning_msg):
         print(warning_msg)
         while True:
