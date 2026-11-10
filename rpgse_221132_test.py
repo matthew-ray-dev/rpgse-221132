@@ -1,8 +1,10 @@
 # pyright: reportPrivateUsage=false
 
 from collections import Counter
+from decimal import Decimal
+from math import pow
+from rpgse_221132 import DIE_SIZE, RollSimulator
 import unittest
-from rpgse_221132 import RollSimulator
 
 class TestRpgSE221132(unittest.TestCase):
 
@@ -209,6 +211,128 @@ class TestRpgSE221132(unittest.TestCase):
         rs: RollSimulator = RollSimulator(0,0,0)
         actual: tuple[int, ...] = rs._convert_dice_histo_counts_to_rolls(roll_counts)
         self.assertSequenceEqual(expected, actual)
+
+    #
+    # OVERALL FUNCTIONALITY
+    #
+    
+    def test_two_dice_with_one_bump(self):
+        '''
+        21 unique roll outcomes (6 doubles, 30/2=15 unique non-doubles).
+        Pre-drop, doubles have 1/36 odds and non-doubles have 2/36 odds.
+        Selected threshold is 4.
+
+        Before bump, odds of (# successes, sixes) are expected to be:
+          (0, 0): 9/36 (3/36: [1,1], [2,2], [3,3] ; 6/36: [1,2], [1,3], [2,3])
+          (0, 1): 0 [impossible]
+          (0, 2): 0 [impossible]
+          (1, 0): 12/36 ([1,5], [2,5], [3,5], [1,4], [2,4], [3,4])
+          (1, 1): 6/36 ([1,6], [2,6], [3,6])
+          (1, 2): 0 [impossible]
+          (2, 0): 4/36 (2/36: [4,4], [5,5]; 1/18: [4,5])
+          (2, 1): 4/36 ([4,6], [5,6])
+          (2, 2): 1/36 ([6,6])
+
+        One bump should have the following effects:
+          (0,0) -> (1,0): 5/36
+            [1,3] -> [1,4], [2,3] -> [2,4], [3,3] -> [3,4]
+          (1,0) -> (2,0): 4/36
+            [3,4] -> [4,4], [3,5] -> [4,5]
+          (1,1) -> (2,1): 2/36
+            [3,6] -> [4,6]
+          (1,0) -> (1,1): 4/36
+            [1,5] -> [1,6], [2,5] -> [2,6]
+          (2,0) -> (2,1): 3/36
+            [4,5] -> [4,6], [5,5] -> [5,6]
+          (2,1) -> (2,2): 2/36
+            [5,6] -> [6,6]
+
+        So the final odds should be:
+          (0, 0): 9/36 - 5/36 = 4/36 (0.1111)
+          (0, 1): 0 [impossible]
+          (0, 2): 0 [impossible]
+          (1, 0): 12/36 + 5/36 - 4/36 - 4/36 = 9/36 (0.25)
+          (1, 1): 6/36 - 2/36 + 4/36 = 8/36 (0.2222)
+          (1, 2): 0 [impossible]
+          (2, 0): 4/36 + 4/36 - 3/36 = 5/36 (0.1389)
+          (2, 1): 4/36 + 2/36 + 3/36 - 2/36 = 7/36 (0.1944)
+          (2, 2): 1/36 + 2/36 = 3/36 (0.0833)
+        '''
+        roll_mod: int = 1
+        expected_counts: Counter[tuple[int, int]] = Counter(
+                {(0,0): 4, (1,0): 9, (1,1): 8, (2,0): 5, (2,1): 7, (2,2): 3})
+        self._test_two_dice_with_roll_mod(roll_mod, expected_counts)
+
+    def test_two_dice_with_one_drop(self):
+        '''
+        21 unique roll outcomes (6 doubles, 30/2=15 unique non-doubles).
+        Pre-drop, doubles have 1/36 odds and non-doubles have 2/36 odds.
+        Selected threshold is 4.
+
+        Before bump, odds of (# successes, sixes) are expected to be:
+          (0, 0): 9/36 (3/36: [1,1], [2,2], [3,3] ; 3/18: [1,2], [1,3], [2,3])
+          (0, 1): 0 [impossible]
+          (0, 2): 0 [impossible]
+          (1, 0): 12/36 ([1,5], [2,5], [3,5], [1,4], [2,4], [3,4])
+          (1, 1): 6/36 ([1,6], [2,6], [3,6])
+          (1, 2): 0 [impossible]
+          (2, 0): 4/36 (2/36: [4,4], [5,5]; 1/18: [4,5])
+          (2, 1): 4/36 ([4,6], [5,6])
+          (2, 2): 1/36 ([6,6])
+
+        One drop should have the following effects:
+          (2,2) -> (2,1): 1/36
+            [6,6] -> [5,6]
+          (2,1) -> (2,0): 2/36
+            [5,6] -> [5,5]
+          (2,1) -> (1,1): 2/36
+            [4,6] -> [3,6]
+          (2,0) -> (1,0): 3/36
+            [4,5] -> [3,5], [4,4] -> [3,4]
+          (1,1) -> (1,0): 6/36
+            [3,6] -> [3,5], [2,6] -> [2,5], [1,6] -> [1,5]
+          (1,0) -> (0,0): 6/36
+            [3,4] -> [3,3], [2,4] -> [2,3], [1,4] -> [1,3]
+
+        So the final odds should be:
+          (0, 0): 9/36 + 6/36 = 15/36
+          (0, 1): 0 [impossible]
+          (0, 2): 0 [impossible]
+          (1, 0): 12/36 + 3/36 + 6/36 - 6/36 = 15/36
+          (1, 1): 6/36 + 2/36 - 6/36 = 2/36
+          (1, 2): 0 [impossible]
+          (2, 0): 4/36 + 2/36 - 3/36 = 3/36
+          (2, 1): 4/36 + 1/36 - 2/36 - 2/36 = 1/36
+          (2, 2): 1/36 - 1/36 = 0
+        '''
+        roll_mod: int = -1
+        expected_counts: Counter[tuple[int, int]] = Counter({
+                (0,0): 15, (1,0): 15, (1,1): 2, (2,0): 3, (2,1): 1})
+        self._test_two_dice_with_roll_mod(roll_mod, expected_counts)
+
+    def _test_two_dice_with_roll_mod(self, roll_mod: int, expected_counts: Counter[tuple[int, int]]):
+        num_dice: int = 2
+        threshold: int = 4
+        expected_percent_strings: list[str] = \
+                self._stringify_expected_counts_as_percents(expected_counts, num_dice)
+
+        rs_one_bump: RollSimulator = RollSimulator(num_dice, threshold, roll_mod)
+        rs_one_bump.compute_roll_odds()
+        actual_counts: Counter[tuple[int, int]] = \
+                rs_one_bump._count_results_by_successes_and_maxes()
+        self.assertDictEqual(expected_counts, actual_counts)
+        actual_percent_strings: list[str] = \
+                rs_one_bump._stringify_counter_as_percents(actual_counts)
+        self.assertSequenceEqual(expected_percent_strings, actual_percent_strings)
+
+    def _stringify_expected_counts_as_percents(self,
+                                               expected_counts: Counter[tuple[int, int]],
+                                               num_dice: int) -> list[str]:
+        denominator: int = int(pow(DIE_SIZE, num_dice))
+        expected_percents: dict[tuple[int, int], Decimal] = \
+                {k: ((Decimal(v) / Decimal(denominator)) * Decimal(100))
+                 for k, v in expected_counts.items()}
+        return [f'{k}: {v:.3}%' for k, v in expected_percents.items()]
 
 
 if __name__ == '__main__':
