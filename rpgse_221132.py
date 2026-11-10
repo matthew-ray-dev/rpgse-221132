@@ -121,7 +121,6 @@ class RollSimulator(object):
         """
         Mutates the input dice_counts Counter according to the number of bumps
         """
-        print(f'Applying {num_bumps} bumps to {dice_counts}...')
         bumps_remaining: int = num_bumps
         # Maximize successes first, go for max-rolls second
         target: int
@@ -135,17 +134,14 @@ class RollSimulator(object):
                     continue
                 while dice_counts[source] > 0 and (
                         bumps_remaining - bump_distance >= 0):
-                    print(f'Bumping a {source} to a {target}...')
                     dice_counts[source] -= 1
                     dice_counts[target] += 1
                     bumps_remaining -= bump_distance
-        print(f'Outcome after bumps: {dice_counts}; {bumps_remaining} drops left over')
 
     def _drop_dice_counts(self, dice_counts: Counter[int], num_drops: int):
         """
         Mutates the input dice_counts Counter according to the number of drops
         """
-        print(f'Applying {num_drops} drops to {dice_counts}...')
         drops_remaining: int = num_drops
         # Minimize successes first, then try to undo undo max-rolls second.
         target: int
@@ -159,11 +155,9 @@ class RollSimulator(object):
                     continue
                 while dice_counts[source] > 0 and (
                         drops_remaining - drop_distance >= 0):
-                    print(f'Dropping a {source} to a {target}...')
                     dice_counts[source] -= 1
                     dice_counts[target] += 1
                     drops_remaining -= drop_distance
-        print(f'Outcome after drops: {dice_counts}; {drops_remaining} drops left over')
     
     def _bump_and_drop_rolls(self, raw_rolls: tuple[int, ...]) -> tuple[int, ...]:
         if (self._roll_mod == 0):
