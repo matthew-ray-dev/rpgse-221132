@@ -215,7 +215,7 @@ def main():
                         help='The number of "bumps" (plus-ones) to apply to dice after the roll.')
     parser.add_argument('-d', '--drops', type=int, default=0,
                             help='The number of "drops" (minus-ones) to apply to dice after the roll.')
-    parser.add_argument('--print-roll-details', action='store_true',
+    parser.add_argument('--full-details', action='store_true',
                             help='Print chance of each distinct roll. (This may be very long.)')
     args = parser.parse_args()
     
@@ -244,7 +244,7 @@ def main():
     # Do the work
     roll_simulator: RollSimulator = RollSimulator(args.num_dice, args.threshold,
                                                   (args.bumps - args.drops))
-    for line in get_printable_results(roll_simulator, args.print_roll_details):
+    for line in get_printable_results(roll_simulator, args.full_details):
         print(line)
 
 
