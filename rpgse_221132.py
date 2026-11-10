@@ -2,7 +2,6 @@ import argparse
 from collections import Counter
 from decimal import Decimal
 from itertools import product
-from math import comb
 import sys
 from textwrap import indent
 from typing import Any, Sequence
@@ -17,77 +16,10 @@ class RollSimulator(object):
     def __init__(self, dice_per_roll: int, threshold: int, roll_mod: int):
         self._raw_roll_counts: Counter[tuple[int, ...]] = Counter()
         self._modded_roll_counts: Counter[tuple[int, ...]] = Counter()
+        self._summarized_roll_counts: Counter[tuple[int, ...]] = Counter()
         self._dice_per_roll = dice_per_roll
         self._threshold = threshold
         self._roll_mod = roll_mod
-
-        
-    def _stringify_counter_as_percents(self, counter: Counter[Any]) -> list[str]:
-        lines: list[str] = []
-        k: Any
-        for k in sorted(counter):
-            fraction: Decimal = Decimal(counter[k]) / Decimal(counter.total())
-            lines.append(f'{k}: {fraction * 100:.3}%')
-        return lines
-
-    
-    def _count_results_by_successes_and_maxes(self) -> Counter[tuple[int, int]]:
-        """
-        Converts the known roll outcomes into (# of successes, # of max-values)
-        tuples, and then counts the numbers of each. 
-        """
-        successes_and_maxes_counts: Counter[tuple[int, int]] = Counter()
-        k: tuple[int, ...]
-        v: int
-        for k, v in self._modded_roll_counts.items():
-            num_successes: int = 0
-            num_maxes: int = 0
-            die: int
-            for die in k:
-                if (die >= self._threshold):
-                    num_successes += 1
-                if (die == DIE_SIZE):
-                    num_maxes += 1
-            successes_and_maxes_counts[(num_successes, num_maxes)] += v
-        return successes_and_maxes_counts
-
-        
-    def get_printable_result(self, include_roll_details: bool=False) -> list[str]:
-        lines: list[str] = []
-        
-        # Results by successes + maxes
-        lines.append(f'Final roll odds grouped by (# successes, # {DIE_SIZE}s):')
-        summary_lines = (indent(s, INDENT)
-                         for s
-                         in self._stringify_counter_as_percents(
-                             self._count_results_by_successes_and_maxes()))
-        lines.extend(summary_lines)
-        
-        # Results by roll
-        if (include_roll_details):
-            # Expectation is calculated with the "multichoose" formula.
-            num_possible_raw_rolls: int = comb(
-                    DIE_SIZE + self._dice_per_roll - 1, self._dice_per_roll)
-            lines.append(f'Expected {num_possible_raw_rolls} possible roll '
-                    + 'outcomes (before bumps & drops).')
-            lines.append('Actual number of raw rolls logged: '
-                    + f'{len(self._raw_roll_counts)}')
-            
-            lines.append('Roll odds for raw / unmodified rolls:')
-            raw_detail_lines = (indent(s, INDENT)
-                                for s
-                                in self._stringify_counter_as_percents(
-                                        self._raw_roll_counts))
-            lines.extend(raw_detail_lines)
-            
-            lines.append('Roll odds for final / modified / bumped-and-dropped rolls:')
-            modded_detail_lines = (indent(s, INDENT)
-                            for s
-                            in self._stringify_counter_as_percents(
-                                self._modded_roll_counts))
-            lines.extend(modded_detail_lines)
-        
-        return lines
 
     def _convert_rolls_to_dice_histo_counts(self, rolls: Sequence[int]) -> Counter[int]:
         """
@@ -163,9 +95,13 @@ class RollSimulator(object):
                 self._drop_dice_counts(dice_counts, abs(self._roll_mod))
             return self._convert_dice_histo_counts_to_rolls(dice_counts)
     
-    def compute_roll_odds(self):
+    def _compute_roll_odds(self):
+        # Don't run this if we done it already, or if the result will be empty
+        if self._summarized_roll_counts or self._dice_per_roll < 1:
+            return
+
         # Count, proportionally, the odds of each raw roll combination.
-        # For example, with three dice, 
+        # For example, with three dice,
         # we represent the odds of rolling-three-1s as ==1,
         # and the odds of rolling-two-1s-and-a-2 as ==3,
         # because there are three distinct ways to roll the latter.
@@ -181,6 +117,83 @@ class RollSimulator(object):
             modded_roll: tuple[int, ...] = self._bump_and_drop_rolls(k)
             self._modded_roll_counts[modded_roll] += v
 
+        # For the "summarized" results, converts the modded roll outcomes into
+        # (# of successes, # of max-values) tuples, and total those counts.
+        for k, v in self._modded_roll_counts.items():
+            num_successes: int = 0
+            num_maxes: int = 0
+            die: int
+            for die in k:
+                if (die >= self._threshold):
+                    num_successes += 1
+                if (die == DIE_SIZE):
+                    num_maxes += 1
+            self._summarized_roll_counts[(num_successes, num_maxes)] += v
+
+    def get_summarized_results(self) -> Counter[tuple[int, ...]]:
+        '''
+        Returns a new Counter object with the proportional odds of each result type.
+        
+        "Result type" is represented by the tuple: (&lt;number of successes rolled&gt;,
+        &lt;number of max-values rolled&gt).
+        
+        "Proportional odds": e.g. if a (1,1) result is three times as likely as
+        a (2,1) result, the counter will be something like {(1,1): 3, (2,1): 1, ...}
+        or {(1,1): 6, (2,1): 2, ...}
+        '''
+        self._compute_roll_odds()
+        return Counter(self._summarized_roll_counts)
+    
+    def get_full_results(self) -> Counter[tuple[int, ...]]:
+        '''
+        Returns a new Counter object with the proportional odds of each roll outcome.
+        
+        A "roll outcome" is any possible combination of dice values that can result
+        from rolling the given number of dice and applying the bumps and drops.
+        This is presented as a sorted tuple.
+        E.g. for 3 dice with threshold 3 and 1 bump, (2,3,6), (1,1,5), and (3,6,6)
+        are all possible roll outcomes.
+        But (2,2,2) is not possible, because a pre-bump roll of (2,2,2) would have
+        been bumped to (2,2,3), and a pre-bump roll of (1,2,2) would not have been
+        bumped at all. (We stop applying bumps and drops if they won't change the
+        number of successes or the number of max-values.)
+        
+        "Proportional odds": e.g. if a (1,1) result is three times as likely as
+        a (2,1) result, the counter will be something like {(1,1): 3, (2,1): 1, ...}
+        or {(1,1): 6, (2,1): 2, ...}
+        '''
+        self._compute_roll_odds()
+        return Counter(self._modded_roll_counts)
+
+def stringify_proportional_odds_as_percentages(odds_counter: Counter[Any]) -> list[str]:
+    lines: list[str] = []
+    k: Any
+    for k in sorted(odds_counter):
+        fraction: Decimal = Decimal(odds_counter[k]) / Decimal(odds_counter.total())
+        lines.append(f'{k}: {fraction * 100:.3}%')
+    return lines
+
+def get_printable_results(rs: RollSimulator, do_print_full_results: bool) -> list[str]:
+    lines: list[str] = []
+
+    # Results by successes + maxes
+    lines.append(f'Final roll odds grouped by (# successes, # {DIE_SIZE}s):')
+    summary_lines = (indent(s, INDENT)
+                        for s
+                        in stringify_proportional_odds_as_percentages(
+                            rs.get_summarized_results()))
+    lines.extend(summary_lines)
+
+    # Results by roll
+    if (do_print_full_results):
+        lines.append('Roll odds for specific rolls (after bumping and dropping):')
+        modded_detail_lines = (indent(s, INDENT)
+                                for s
+                                in stringify_proportional_odds_as_percentages(
+                                    rs.get_full_results()))
+        lines.extend(modded_detail_lines)
+    
+    return lines
 
 def getBooleanUserInput(question: str) -> bool:
     while True:
@@ -231,9 +244,7 @@ def main():
     # Do the work
     roll_simulator: RollSimulator = RollSimulator(args.num_dice, args.threshold,
                                                   (args.bumps - args.drops))
-    roll_simulator.compute_roll_odds()
-    for line in roll_simulator.get_printable_result(
-            include_roll_details=args.print_roll_details):
+    for line in get_printable_results(roll_simulator, args.print_roll_details):
         print(line)
 
 

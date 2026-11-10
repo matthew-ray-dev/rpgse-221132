@@ -3,7 +3,7 @@
 from collections import Counter
 from decimal import Decimal
 from math import pow
-from rpgse_221132 import DIE_SIZE, RollSimulator
+from rpgse_221132 import DIE_SIZE, get_printable_results, RollSimulator
 import unittest
 
 class TestRpgSE221132(unittest.TestCase):
@@ -316,13 +316,11 @@ class TestRpgSE221132(unittest.TestCase):
         expected_percent_strings: list[str] = \
                 self._stringify_expected_counts_as_percents(expected_counts, num_dice)
 
-        rs_one_bump: RollSimulator = RollSimulator(num_dice, threshold, roll_mod)
-        rs_one_bump.compute_roll_odds()
-        actual_counts: Counter[tuple[int, int]] = \
-                rs_one_bump._count_results_by_successes_and_maxes()
+        rs: RollSimulator = RollSimulator(num_dice, threshold, roll_mod)
+        actual_counts: Counter[tuple[int, ...]] = rs.get_summarized_results()
         self.assertDictEqual(expected_counts, actual_counts)
         actual_percent_strings: list[str] = \
-                rs_one_bump._stringify_counter_as_percents(actual_counts)
+                [line.lstrip() for line in get_printable_results(rs, False)[1:]]
         self.assertSequenceEqual(expected_percent_strings, actual_percent_strings)
 
     def _stringify_expected_counts_as_percents(self,
