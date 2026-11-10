@@ -190,44 +190,51 @@ class RollSimulator(object):
             self._modded_roll_counts[modded_roll] += v
 
 
+def getBooleanUserInput(question: str) -> bool:
+    while True:
+        response: str = input(question + " [Y/N] ")
+        if (response == 'Y' or response == 'y'):
+            return True
+        elif (response == 'N' or response == 'n'):
+            return False
+
 def main():
     parser = argparse.ArgumentParser(
                     prog='rpgse_221132',
                     description='Computes odds of rolls under the bump/drop system described in https://rpg.stackexchange.com/q/221132/.')
     parser.add_argument('-n', '--num-dice', type=int, required=True,
-                        help='The number of d6 dice to roll')
+                        help='The number of d6 dice to roll (>=1).')
     parser.add_argument('-t', '--threshold', type=int, required=True,
-                        help='Number that a die must equal or exceed to count as a Success')
+                        help='Number that a die must equal or exceed to count as a success.')
     parser.add_argument('-b', '--bumps', type=int, default=0,
-                        help='The number of "bumps" (plus-ones) to apply to dice after the roll')
+                        help='The number of "bumps" (plus-ones) to apply to dice after the roll.')
     parser.add_argument('-d', '--drops', type=int, default=0,
-                            help='The number of "drops" (minus-ones) to apply to dice after the roll')
+                            help='The number of "drops" (minus-ones) to apply to dice after the roll.')
     parser.add_argument('--print-roll-details', action='store_true',
                             help='Print chance of each distinct roll. (This may be very long.)')
     args = parser.parse_args()
     
     # Input validation
     # Error states
-    if (args.num_dice < 0):
-        print('ERROR! Number of dice cannot be negative.', file=sys.stderr)
+    if (args.num_dice < 1):
+        print('ERROR! Number of dice cannot be less than 1.', file=sys.stderr)
         exit(1)
     if (args.bumps < 0 or args.drops < 0):
         print('ERROR! Bumps and/or drops cannot be negative numbers.', file=sys.stderr)
         exit(2)
     # Warning states
-    warning_msg: str = ''
+    warning_messages: list[str] = list()
     if (args.threshold <= 0):
-        warning_msg = f'WARNING! Threshold value ({args.threshold}) is <= 0. Results may not be useful.'
+        warning_messages.append(f'WARNING! Threshold value ({args.threshold}) is <= 0. All rolls will succeed.')
     elif (args.threshold > DIE_SIZE):
-        warning_msg = f'WARNING! Threshold value ({args.threshold}) is above max die value ({DIE_SIZE}). Results may not be useful.'
-    if (warning_msg):
-        print(warning_msg)
-        while True:
-            response: str = input("Proceed anyway? [Y/N] ")
-            if (response == 'Y' or response == 'y'):
-                break
-            elif (response == 'N' or response == 'n'):
-                exit(0)
+        warning_messages.append(f'WARNING! Threshold value ({args.threshold}) is above max die value ({DIE_SIZE}). All rolls will fail.')
+    if not args.bumps and not args.drops:
+        warning_messages.append('WARNING! No bumps or drops applied.')
+    if (warning_messages):
+        for msg in warning_messages:
+            print(msg)
+        if not getBooleanUserInput("Proceed anyway?"):
+            exit(0)
     
     # Do the work
     roll_simulator: RollSimulator = RollSimulator(args.num_dice, args.threshold,
