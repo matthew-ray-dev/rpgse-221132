@@ -3,7 +3,8 @@
 from collections import Counter
 from decimal import Decimal
 from math import pow
-from rpgse_221132 import DIE_SIZE, get_printable_results, RollSimulator
+from re import escape
+from rpgse_221132 import BLOCK_CHAR, DIE_SIZE, get_printable_results, RollSimulator
 import unittest
 
 class TestRpgSE221132(unittest.TestCase):
@@ -313,24 +314,31 @@ class TestRpgSE221132(unittest.TestCase):
     def _test_two_dice_with_roll_mod(self, roll_mod: int, expected_counts: Counter[tuple[int, int]]):
         num_dice: int = 2
         threshold: int = 4
-        expected_percent_strings: list[str] = \
-                self._stringify_expected_counts_as_percents(expected_counts, num_dice)
+        expected_output_regexes: list[str] = \
+                self._build_expected_counts_regexes(expected_counts, num_dice)
 
         rs: RollSimulator = RollSimulator(num_dice, threshold, roll_mod)
         actual_counts: Counter[tuple[int, ...]] = rs.get_summarized_results()
         self.assertDictEqual(expected_counts, actual_counts)
-        actual_percent_strings: list[str] = \
-                [line.lstrip() for line in get_printable_results(rs, False)[1:]]
-        self.assertSequenceEqual(expected_percent_strings, actual_percent_strings)
+        # [1:] to remove the title / section header
+        actual_output_strings: list[str] = get_printable_results(rs, False)[1:]
+        for pair in zip(actual_output_strings, expected_output_regexes, strict=True):
+            self.assertRegex(pair[0], pair[1])
 
-    def _stringify_expected_counts_as_percents(self,
-                                               expected_counts: Counter[tuple[int, int]],
-                                               num_dice: int) -> list[str]:
+    def _build_expected_counts_regexes(self,
+                                        expected_counts: Counter[tuple[int, int]],
+                                        num_dice: int) -> list[str]:
+
+        def _regexify(key: tuple[int, ...], count: int, percent: Decimal) -> str:
+            percent_pattern = ' *' + escape(f'{key}: {percent:.3}%')
+            middle_space_pattern = ' +'
+            bar_pattern = BLOCK_CHAR + '{' + str(count) + '}'
+            return '^' + percent_pattern + middle_space_pattern + bar_pattern + '$'
         denominator: int = int(pow(DIE_SIZE, num_dice))
-        expected_percents: dict[tuple[int, int], Decimal] = \
-                {k: ((Decimal(v) / Decimal(denominator)) * Decimal(100))
+        counts_with_percents: dict[tuple[int, int], tuple[int, Decimal]] = \
+                {k: (v, (Decimal(v) / Decimal(denominator)) * Decimal(100))
                  for k, v in expected_counts.items()}
-        return [f'{k}: {v:.3}%' for k, v in expected_percents.items()]
+        return [_regexify(k, v[0], v[1]) for k, v in counts_with_percents.items()]
 
 
 if __name__ == '__main__':

@@ -7,6 +7,7 @@ from textwrap import indent
 from typing import Any, Sequence
 
 DIE_SIZE: int = 6
+BLOCK_CHAR: str = '\u2588'
 INDENT = '    '
 ROLL_BLOCK_SIZE = 1_000_000
 
@@ -165,12 +166,25 @@ class RollSimulator(object):
         self._compute_roll_odds()
         return Counter(self._modded_roll_counts)
 
-def stringify_proportional_odds_as_percentages(odds_counter: Counter[Any]) -> list[str]:
+def stringify_proportional_odds(odds_counter: Counter[Any]) -> list[str]:
+    '''
+    Convert the proportional number to a percentage number, and also tack on a
+    visual "bar graph" made of block characters.
+    '''
+    half_built_lines: list[tuple[str, str]] = []
     lines: list[str] = []
     k: Any
+    max_percent_str_len: int = -1
     for k in sorted(odds_counter):
         fraction: Decimal = Decimal(odds_counter[k]) / Decimal(odds_counter.total())
-        lines.append(f'{k}: {fraction * 100:.3}%')
+        percent_str: str = f'{k}: {fraction * 100:.3}% ' # space at end is on purpose
+        bar_str: str = BLOCK_CHAR * odds_counter[k]
+        max_percent_str_len = max(len(percent_str), max_percent_str_len)
+        half_built_lines.append((percent_str, bar_str))
+    for percent_str, bar_str in half_built_lines:
+        len_diff: int = max_percent_str_len - (len(percent_str))
+        padding: str = ' ' * len_diff
+        lines.append(percent_str + padding + bar_str)
     return lines
 
 def get_printable_results(rs: RollSimulator, do_print_full_results: bool) -> list[str]:
@@ -180,7 +194,7 @@ def get_printable_results(rs: RollSimulator, do_print_full_results: bool) -> lis
     lines.append(f'Final roll odds grouped by (# successes, # {DIE_SIZE}s):')
     summary_lines = (indent(s, INDENT)
                         for s
-                        in stringify_proportional_odds_as_percentages(
+                        in stringify_proportional_odds(
                             rs.get_summarized_results()))
     lines.extend(summary_lines)
 
@@ -189,7 +203,7 @@ def get_printable_results(rs: RollSimulator, do_print_full_results: bool) -> lis
         lines.append('Roll odds for specific rolls (after bumping and dropping):')
         modded_detail_lines = (indent(s, INDENT)
                                 for s
-                                in stringify_proportional_odds_as_percentages(
+                                in stringify_proportional_odds(
                                     rs.get_full_results()))
         lines.extend(modded_detail_lines)
     
