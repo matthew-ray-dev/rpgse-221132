@@ -321,7 +321,7 @@ class TestRpgSE221132(unittest.TestCase):
         actual_counts: Counter[tuple[int, ...]] = rs.get_summarized_results()
         self.assertDictEqual(expected_counts, actual_counts)
         # [1:] to remove the title / section header
-        actual_output_strings: list[str] = get_printable_results(rs, False)[1:]
+        actual_output_strings: list[str] = get_printable_results(rs, False, False, False, True)[1:]
         for pair in zip(actual_output_strings, expected_output_regexes, strict=True):
             self.assertRegex(pair[0], pair[1])
 

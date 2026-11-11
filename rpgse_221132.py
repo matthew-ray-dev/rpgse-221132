@@ -4,11 +4,12 @@ from decimal import Decimal
 from itertools import product
 import sys
 from textwrap import indent
-from typing import Any, Sequence
+from typing import Any, Callable, Sequence
 
 DIE_SIZE: int = 6
 BLOCK_CHAR: str = '\u2588'
 INDENT = '    '
+MAX_OUTPUT_LINE_LEN = 120
 ROLL_BLOCK_SIZE = 1_000_000
 
 class RollSimulator(object):
@@ -166,28 +167,55 @@ class RollSimulator(object):
         self._compute_roll_odds()
         return Counter(self._modded_roll_counts)
 
-def stringify_proportional_odds(odds_counter: Counter[Any]) -> list[str]:
+def stringify_proportional_odds(odds_counter: Counter[Any], sort_by_odds: bool,
+                                no_bars: bool, full_bars: bool) -> list[str]:
     '''
     Convert the proportional number to a percentage number, and also tack on a
     visual "bar graph" made of block characters.
     '''
-    half_built_lines: list[tuple[str, str]] = []
+    percent_strings: list[str] = []
     lines: list[str] = []
-    k: Any
+
+    # Sort by keys asc. if sort_by_odds is false, and values desc. if it's true
+    sortable_odds_counts: list[tuple[Any, int]] = list(odds_counter.items())
+    sort_key: Callable[[tuple[Any, int]], Any] = \
+            (lambda x: x[1]) if sort_by_odds else (lambda x: x[0])
+    sortable_odds_counts.sort(key=sort_key, reverse=sort_by_odds)
+
     max_percent_str_len: int = -1
-    for k in sorted(odds_counter):
-        fraction: Decimal = Decimal(odds_counter[k]) / Decimal(odds_counter.total())
-        percent_str: str = f'{k}: {fraction * 100:.3}% ' # space at end is on purpose
-        bar_str: str = BLOCK_CHAR * odds_counter[k]
-        max_percent_str_len = max(len(percent_str), max_percent_str_len)
-        half_built_lines.append((percent_str, bar_str))
-    for percent_str, bar_str in half_built_lines:
-        len_diff: int = max_percent_str_len - (len(percent_str))
-        padding: str = ' ' * len_diff
-        lines.append(percent_str + padding + bar_str)
+    for item in sortable_odds_counts:
+        k: Any = item[0]
+        v: int = item[1]
+        fraction: Decimal = Decimal(v) / Decimal(odds_counter.total())
+        percent_str: str = f'{k}: {fraction * 100:.3}%'
+        percent_strings.append(percent_str)
+        if not no_bars:
+            max_percent_str_len = max(len(percent_str), max_percent_str_len)
+    if not no_bars:
+        # Figure out how long a bar is allowed to be.
+        # We have a simple default func, where length == count:
+        get_bar_length_from_count: Callable[[int], int] = lambda x: x
+        if not full_bars:
+            # '+ 1' for the space between the (longest) percent and the bars
+            max_bar_length = MAX_OUTPUT_LINE_LEN - max_percent_str_len + 1
+            max_count = max(odds_counter.values())
+            if max_count > max_bar_length:
+                # Replace the default func with a more complex one.
+                # We should "compress" each bar to fit in the allotted range.
+                ratio: Decimal = Decimal(max_bar_length) / Decimal(max_count)
+                get_bar_length_from_count = lambda x: round(Decimal(x) * ratio)
+        # Then finally build the lines
+        for percent_str, count in zip(percent_strings, (item[1] for item in sortable_odds_counts)):
+            len_diff: int = max_percent_str_len - (len(percent_str))
+            padding: str = ' ' * len_diff # 0 for the longest line(s)
+            bar_str: str = ' ' + (BLOCK_CHAR * get_bar_length_from_count(count))
+            lines.append(percent_str + padding + bar_str)
+    else:
+        lines = percent_strings
     return lines
 
-def get_printable_results(rs: RollSimulator, do_print_full_results: bool) -> list[str]:
+def get_printable_results(rs: RollSimulator, do_print_full_results: bool,
+                          sort_by_odds: bool, no_bars: bool, full_bars: bool) -> list[str]:
     lines: list[str] = []
 
     # Results by successes + maxes
@@ -195,7 +223,7 @@ def get_printable_results(rs: RollSimulator, do_print_full_results: bool) -> lis
     summary_lines = (indent(s, INDENT)
                         for s
                         in stringify_proportional_odds(
-                            rs.get_summarized_results()))
+                            rs.get_summarized_results(), sort_by_odds, no_bars, full_bars))
     lines.extend(summary_lines)
 
     # Results by roll
@@ -204,7 +232,7 @@ def get_printable_results(rs: RollSimulator, do_print_full_results: bool) -> lis
         modded_detail_lines = (indent(s, INDENT)
                                 for s
                                 in stringify_proportional_odds(
-                                    rs.get_full_results()))
+                                    rs.get_full_results(), sort_by_odds, no_bars, full_bars))
         lines.extend(modded_detail_lines)
     
     return lines
@@ -220,7 +248,8 @@ def getBooleanUserInput(question: str) -> bool:
 def main():
     parser = argparse.ArgumentParser(
                     prog='rpgse_221132',
-                    description='Computes odds of rolls under the bump/drop system described in https://rpg.stackexchange.com/q/221132/.')
+                    description='Computes odds of rolls under the bump/drop system described in https://rpg.stackexchange.com/q/221132/.',
+                    formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-n', '--num-dice', type=int, required=True,
                         help='The number of d6 dice to roll (>=1).')
     parser.add_argument('-t', '--threshold', type=int, required=True,
@@ -231,6 +260,23 @@ def main():
                             help='The number of "drops" (minus-ones) to apply to dice after the roll.')
     parser.add_argument('--full-details', action='store_true',
                             help='Print chance of each distinct roll. (This may be very long.)')
+    parser.add_argument('-s', '--sort', type=str, choices=('R', 'r', 'O', 'o'), default='R',
+                            help='''
+Choose the sort mode for the results. Accepted values are:
+  - 'R': sort the results by the roll type / roll. E.g. (1,1) before (1,2).
+     This is the default.
+  - 'O': sort the results by their odds, from most likely to least.
+     E.g. 10%% before 9%%.
+  - 'r' and 'o': aliases for 'R' and 'O' respectively.''')
+    
+    bar_graph_group = parser.add_mutually_exclusive_group()
+    bar_graph_group.add_argument('--no-bars', action='store_true',
+                            help='Turn off the bar graph in the results.')
+    bar_graph_group.add_argument('--full-bars', action='store_true',
+                            help='''
+Show the bars in the bar graph at their full / true lengths,
+instead of compressing them to fit in a more reasonable width.
+This is technically more accurate but may be harder to look at.''')
     args = parser.parse_args()
     
     # Input validation
@@ -258,7 +304,9 @@ def main():
     # Do the work
     roll_simulator: RollSimulator = RollSimulator(args.num_dice, args.threshold,
                                                   (args.bumps - args.drops))
-    for line in get_printable_results(roll_simulator, args.full_details):
+    sort_by_odds: bool = (args.sort.upper() == 'O')
+    for line in get_printable_results(roll_simulator, args.full_details,
+                                      sort_by_odds, args.no_bars, args.full_bars):
         print(line)
 
 
