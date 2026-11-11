@@ -246,7 +246,7 @@ def get_printable_results(rs: RollSimulator, do_print_full_results: bool,
     
     return lines
 
-def getBooleanUserInput(question: str) -> bool:
+def get_boolean_user_input(question: str) -> bool:
     '''
     Asks the user the given question and waits for input. 'Y' or 'y' returns True,
     'N' or 'n' returns False, and any other input makes it repeat the question.
@@ -328,7 +328,7 @@ This is technically more accurate but may be harder to look at.''')
     if (warning_messages):
         for msg in warning_messages:
             print(msg)
-        if not getBooleanUserInput("Proceed anyway?"):
+        if not get_boolean_user_input("Proceed anyway?"):
             exit(0)
     
     # Do the work
