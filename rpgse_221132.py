@@ -10,7 +10,6 @@ DIE_SIZE: int = 6
 BLOCK_CHAR: str = '\u2588'
 INDENT = '    '
 MAX_OUTPUT_LINE_LEN = 120
-ROLL_BLOCK_SIZE = 1_000_000
 
 class RollSimulator(object):
     """Rolls dice, applies bumps/drops, and counts the results."""
