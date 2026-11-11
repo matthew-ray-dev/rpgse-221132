@@ -317,6 +317,10 @@ This is technically more accurate but may be harder to look at.''')
             exit(0)
     
     # Do the work
+    print(f'Working with {args.num_dice} {'die' if args.num_dice == 1 else 'dice'}, '
+          + f'successes >= {args.threshold}, '
+          + f'{args.bumps} bump{'' if args.bumps == 1 else 's'} '
+          + f'and {args.drops} drop{'' if args.drops == 1 else 's'}...')
     roll_simulator: RollSimulator = RollSimulator(args.num_dice, args.threshold,
                                                   (args.bumps - args.drops))
     sort_by_odds: bool = (args.sort.upper() == 'O')
