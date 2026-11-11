@@ -168,7 +168,7 @@ class RollSimulator(object):
         return Counter(self._modded_roll_counts)
 
 def stringify_proportional_odds(odds_counter: Counter[Any], sort_by_odds: bool,
-                                no_bars: bool, full_bars: bool) -> list[str]:
+                                sort_reverse: bool, no_bars: bool, full_bars: bool) -> list[str]:
     '''
     Convert the proportional number to a percentage number, and also tack on a
     visual "bar graph" made of block characters.
@@ -180,7 +180,7 @@ def stringify_proportional_odds(odds_counter: Counter[Any], sort_by_odds: bool,
     sortable_odds_counts: list[tuple[Any, int]] = list(odds_counter.items())
     sort_key: Callable[[tuple[Any, int]], Any] = \
             (lambda x: x[1]) if sort_by_odds else (lambda x: x[0])
-    sortable_odds_counts.sort(key=sort_key, reverse=sort_by_odds)
+    sortable_odds_counts.sort(key=sort_key, reverse=sort_reverse)
 
     max_percent_str_len: int = -1
     for item in sortable_odds_counts:
@@ -215,7 +215,7 @@ def stringify_proportional_odds(odds_counter: Counter[Any], sort_by_odds: bool,
     return lines
 
 def get_printable_results(rs: RollSimulator, do_print_full_results: bool,
-                          sort_by_odds: bool, no_bars: bool, full_bars: bool) -> list[str]:
+                          sort_by_odds: bool, sort_reverse: bool, no_bars: bool, full_bars: bool) -> list[str]:
     lines: list[str] = []
 
     # Results by successes + maxes
@@ -223,7 +223,7 @@ def get_printable_results(rs: RollSimulator, do_print_full_results: bool,
     summary_lines = (indent(s, INDENT)
                         for s
                         in stringify_proportional_odds(
-                            rs.get_summarized_results(), sort_by_odds, no_bars, full_bars))
+                            rs.get_summarized_results(), sort_by_odds, sort_reverse, no_bars, full_bars))
     lines.extend(summary_lines)
 
     # Results by roll
@@ -232,7 +232,7 @@ def get_printable_results(rs: RollSimulator, do_print_full_results: bool,
         modded_detail_lines = (indent(s, INDENT)
                                 for s
                                 in stringify_proportional_odds(
-                                    rs.get_full_results(), sort_by_odds, no_bars, full_bars))
+                                    rs.get_full_results(), sort_by_odds, sort_reverse, no_bars, full_bars))
         lines.extend(modded_detail_lines)
     
     return lines
@@ -275,14 +275,15 @@ the program prints the odds of landing in each group, with an approximate bar gr
     result_formatting_group = parser.add_argument_group('Result formatting', 'Change how the program prints out its results.')
     result_formatting_group.add_argument('--full-details', action='store_true',
                             help='Print chance of each distinct roll. (This may be very long.)')
-    result_formatting_group.add_argument('-s', '--sort', type=str, choices=('R', 'r', 'O', 'o'), default='R',
+    result_formatting_group.add_argument('-s', '--sort', type=str, choices=('r', 'R', 'o', 'O'), default='R',
                             help='''
 Choose the sort mode for the results. Accepted values are:
-  - 'R': sort the results by the roll type / roll. E.g. (1,1) before (1,2).
+  - 'r': sort the results by the roll type / roll. E.g. (1,1) before (1,2).
      This is the default.
-  - 'O': sort the results by their odds, from most likely to least.
-     E.g. 10%% before 9%%.
-  - 'r' and 'o': aliases for 'R' and 'O' respectively.''')
+  - 'R': Reverse of 'r'. E.g. (1,2) before (1,1).
+  - 'o': sort the results by their odds, from least likely to most.
+     E.g. 9%% before 10%%.
+  - 'O': Reverse of 'O'. E.g. 10%% before 9%%.''')
     
     bar_graph_subgroup = result_formatting_group.add_mutually_exclusive_group()
     bar_graph_subgroup.add_argument('--no-bars', action='store_true',
@@ -320,8 +321,9 @@ This is technically more accurate but may be harder to look at.''')
     roll_simulator: RollSimulator = RollSimulator(args.num_dice, args.threshold,
                                                   (args.bumps - args.drops))
     sort_by_odds: bool = (args.sort.upper() == 'O')
+    sort_reverse: bool = (args.sort == args.sort.upper())
     for line in get_printable_results(roll_simulator, args.full_details,
-                                      sort_by_odds, args.no_bars, args.full_bars):
+                                      sort_by_odds, sort_reverse, args.no_bars, args.full_bars):
         print(line)
 
 
