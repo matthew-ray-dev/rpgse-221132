@@ -248,19 +248,34 @@ def getBooleanUserInput(question: str) -> bool:
 def main():
     parser = argparse.ArgumentParser(
                     prog='rpgse_221132',
-                    description='Computes odds of rolls under the bump/drop system described in https://rpg.stackexchange.com/q/221132/.',
+                    description='''
+Computes odds of rolls under the bump/drop system described in https://rpg.stackexchange.com/q/221132/.
+
+The idea of the system is that you roll a number of 6-sided dice, apply "bumps" and "drops", (+1 and -1
+modifiers), and see how many are successes (greater than or equal to the "threshold" number). 6s have
+bonus properties. Dies may be bumped or dropped more than once.
+
+For a given number of dice, threshold value, number of bumps, and number of drops, this program computes
+the odds of every possible outcome. First, it finds every possible "raw" roll. Then it cancels out the
+bumps and drops until only one side remains, and applies those "nudges" to each possible roll in turn.
+Nudges are applied to maximize/minimize the number of successes first; if any nudges are left over, the
+program then tries to create/remove 6s. Any nudges left over after that are not applied, as they cannot
+change the outcome. Finally, rolls with the same numbers of successes and 6s are grouped together, and
+the program prints the odds of landing in each group, with an approximate bar graph for illustration.''',
                     formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('-n', '--num-dice', type=int, required=True,
+    roll_params_group = parser.add_argument_group('Roll parameters', 'Tell the program what rolls to simulate.')
+    roll_params_group.add_argument('-n', '--num-dice', type=int, required=True,
                         help='The number of d6 dice to roll (>=1).')
-    parser.add_argument('-t', '--threshold', type=int, required=True,
+    roll_params_group.add_argument('-t', '--threshold', type=int, required=True,
                         help='Number that a die must equal or exceed to count as a success.')
-    parser.add_argument('-b', '--bumps', type=int, default=0,
+    roll_params_group.add_argument('-b', '--bumps', type=int, default=0,
                         help='The number of "bumps" (plus-ones) to apply to dice after the roll.')
-    parser.add_argument('-d', '--drops', type=int, default=0,
+    roll_params_group.add_argument('-d', '--drops', type=int, default=0,
                             help='The number of "drops" (minus-ones) to apply to dice after the roll.')
-    parser.add_argument('--full-details', action='store_true',
+    result_formatting_group = parser.add_argument_group('Result formatting', 'Change how the program prints out its results.')
+    result_formatting_group.add_argument('--full-details', action='store_true',
                             help='Print chance of each distinct roll. (This may be very long.)')
-    parser.add_argument('-s', '--sort', type=str, choices=('R', 'r', 'O', 'o'), default='R',
+    result_formatting_group.add_argument('-s', '--sort', type=str, choices=('R', 'r', 'O', 'o'), default='R',
                             help='''
 Choose the sort mode for the results. Accepted values are:
   - 'R': sort the results by the roll type / roll. E.g. (1,1) before (1,2).
@@ -269,10 +284,10 @@ Choose the sort mode for the results. Accepted values are:
      E.g. 10%% before 9%%.
   - 'r' and 'o': aliases for 'R' and 'O' respectively.''')
     
-    bar_graph_group = parser.add_mutually_exclusive_group()
-    bar_graph_group.add_argument('--no-bars', action='store_true',
+    bar_graph_subgroup = result_formatting_group.add_mutually_exclusive_group()
+    bar_graph_subgroup.add_argument('--no-bars', action='store_true',
                             help='Turn off the bar graph in the results.')
-    bar_graph_group.add_argument('--full-bars', action='store_true',
+    bar_graph_subgroup.add_argument('--full-bars', action='store_true',
                             help='''
 Show the bars in the bar graph at their full / true lengths,
 instead of compressing them to fit in a more reasonable width.
