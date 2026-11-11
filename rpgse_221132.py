@@ -12,7 +12,7 @@ INDENT = '    '
 MAX_OUTPUT_LINE_LEN = 120
 
 class RollSimulator(object):
-    """Rolls dice, applies bumps/drops, and counts the results."""
+    """Rolls dice, applies bumps/drops, and tallies the results."""
 
     def __init__(self, dice_per_roll: int, threshold: int, roll_mod: int):
         self._raw_roll_counts: Counter[tuple[int, ...]] = Counter()
@@ -85,6 +85,7 @@ class RollSimulator(object):
                     drops_remaining -= drop_distance
     
     def _bump_and_drop_rolls(self, raw_rolls: tuple[int, ...]) -> tuple[int, ...]:
+        '''Cancels out bumps and drops, and then applies the remainder to each raw roll.'''
         if (self._roll_mod == 0):
             return raw_rolls
         else:
@@ -97,6 +98,11 @@ class RollSimulator(object):
             return self._convert_dice_histo_counts_to_rolls(dice_counts)
     
     def _compute_roll_odds(self):
+        '''
+        Find every possible way of rolling the dice and the probabilities of doing so,
+        apply the given bumps and/or drops to each roll, then group the outcomes by
+        how many successful dice (>= threshold) and max-value dice are in each outcome.
+        '''
         # Don't run this if we done it already, or if the result will be empty
         if self._summarized_roll_counts or self._dice_per_roll < 1:
             return
@@ -215,6 +221,10 @@ def stringify_proportional_odds(odds_counter: Counter[Any], sort_by_odds: bool,
 
 def get_printable_results(rs: RollSimulator, do_print_full_results: bool,
                           sort_by_odds: bool, sort_reverse: bool, no_bars: bool, full_bars: bool) -> list[str]:
+    '''
+    Takes the result of the roll simulations and converts them into printable
+    strings of percentages, with an optional "bar graph" tacked on.
+    '''
     lines: list[str] = []
 
     # Results by successes + maxes
@@ -237,6 +247,10 @@ def get_printable_results(rs: RollSimulator, do_print_full_results: bool,
     return lines
 
 def getBooleanUserInput(question: str) -> bool:
+    '''
+    Asks the user the given question and waits for input. 'Y' or 'y' returns True,
+    'N' or 'n' returns False, and any other input makes it repeat the question.
+    '''
     while True:
         response: str = input(question + " [Y/N] ")
         if (response == 'Y' or response == 'y'):
@@ -245,6 +259,7 @@ def getBooleanUserInput(question: str) -> bool:
             return False
 
 def main():
+    """See argparse description."""
     parser = argparse.ArgumentParser(
                     prog='rpgse_221132',
                     description='''
