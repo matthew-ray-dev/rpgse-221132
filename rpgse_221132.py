@@ -266,8 +266,8 @@ def main():
 Computes odds of dice rolls under the RPG system described in https://rpg.stackexchange.com/q/221132/.
 
 The idea of the system is that you roll a number of 6-sided dice, apply "bumps" and "drops", (+1 and -1
-modifiers), and see how many are successes (greater than or equal to the "threshold" number). 6s have
-bonus properties. Dies may be bumped or dropped more than once.
+modifiers), and count how many dice are successes (greater than or equal to the "threshold" number).
+6s have bonus properties. A die may be bumped or dropped more than once.
 
 For a given number of dice, threshold value, number of bumps, and number of drops, this program computes
 the odds of every possible outcome. First, it finds every possible "raw" roll. Then it cancels out the

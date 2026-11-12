@@ -2,11 +2,27 @@
 
 Computes odds of dice rolls under the RPG system described in https://rpg.stackexchange.com/q/221132/.
 
-The idea of the system is that you roll a number of 6-sided dice, apply "bumps" and "drops", (+1 and -1 modifiers), and see how many are successes (greater than or equal to the "threshold" number). 6s have bonus properties. Dies may be bumped or dropped more than once.
+The idea of the system is that you roll a number of 6-sided dice, apply "bumps" and "drops", (+1 and -1 modifiers), and count how many dice are successes (greater than or equal to the "threshold" number). 6s have bonus properties. A die may be bumped or dropped more than once.
 
 For a given number of dice, threshold value, number of bumps, and number of drops, this program computes the odds of every possible outcome. First, it finds every possible "raw" roll. Then it cancels out the bumps and drops until only one side remains, and applies those "nudges" to each possible roll in turn. Nudges are applied to maximize/minimize the number of successes first; if any nudges are left over, the program then tries to create/remove 6s. Any nudges left over after that are not applied, as they cannot change the outcome. Finally, rolls with the same numbers of successes and 6s are grouped together, and the program prints the odds of landing in each group, with an approximate bar graph for illustration.
 
-## Examples:
+```powershell
+PS C:\Users\foo\bar> python .\rpgse_221132.py -n 3 -t 4 -b 3 -d 1 --sort O
+Working with 3 dice, successes >= 4, 3 bumps and 1 drop...
+Final roll odds grouped by (# successes, # 6s):
+    (2, 1): 19.4%  ██████████████████████████████████████████
+    (2, 0): 17.1%  █████████████████████████████████████
+    (3, 1): 15.7%  ██████████████████████████████████
+    (3, 2): 11.6%  █████████████████████████
+    (3, 0): 9.72%  █████████████████████
+    (1, 0): 8.80%  ███████████████████
+    (2, 2): 8.33%  ██████████████████
+    (3, 3): 4.63%  ██████████
+    (1, 1): 4.17%  █████████
+    (0, 0): 0.463% █
+```
+
+## Bump/drop logic examples:
 
 Altered values are bolded. 6s are in italics.
 
