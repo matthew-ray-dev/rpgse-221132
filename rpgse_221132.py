@@ -263,7 +263,7 @@ def main():
     parser = argparse.ArgumentParser(
                     prog='rpgse_221132',
                     description='''
-Computes odds of rolls under the bump/drop system described in https://rpg.stackexchange.com/q/221132/.
+Computes odds of dice rolls under the RPG system described in https://rpg.stackexchange.com/q/221132/.
 
 The idea of the system is that you roll a number of 6-sided dice, apply "bumps" and "drops", (+1 and -1
 modifiers), and see how many are successes (greater than or equal to the "threshold" number). 6s have
